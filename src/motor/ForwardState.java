@@ -65,7 +65,6 @@ public class ForwardState extends IState{
 		timer = new Timer();
 		
 		if(right){
-			System.out.println("calling the right interrupt");
 			timer.schedule(new interupt_right(),  miliseconds );
 		}
 		else{
