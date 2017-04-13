@@ -115,9 +115,11 @@ public class MotorController {
 				case right:
 					forwardEvent.rightTurn();
 					currentState = MotorState.forward;
+					break;
 				case left:
 					forwardEvent.leftTurn();
 					currentState = MotorState.forward;
+					break;
 				default:
 					break;
 				}

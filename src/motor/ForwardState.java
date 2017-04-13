@@ -47,7 +47,7 @@ public class ForwardState extends IState{
 		timer = new Timer();
 
 	}	
-
+//int increase -1 decrease, 0 increase, 1 right, 2 left
 	protected void createInterupt (int miliseconds, Boolean increase){
 		timer.cancel();
 		timer = new Timer();
@@ -57,6 +57,19 @@ public class ForwardState extends IState{
 		}
 		else {
 			timer.schedule(new interupt_decrease(), miliseconds );
+		}
+	}
+	
+	protected void createInteruptTurn (int miliseconds, Boolean right){
+		timer.cancel();
+		timer = new Timer();
+		
+		if(right){
+			System.out.println("calling the right interrupt");
+			timer.schedule(new interupt_right(),  miliseconds );
+		}
+		else{
+			timer.schedule(new interupt_left(), miliseconds);
 		}
 	}
 
@@ -274,22 +287,25 @@ public class ForwardState extends IState{
 		System.out.println("Turning Right while going forward");
 		dutycycle = GPIO.getDutyCycle();
 		if(turnCount == 5){
-			createInterupt(interuptTime, false);
+			createInteruptTurn(interuptTime, true);
 			System.out.println("Interupt_scheduler called");
 			if((dutycycle - 10) >= GPIO.getMIN_DUTY()){
+				System.out.println("Right changed to: " + (dutycycle -10));
 				GPIO.setPWMRight((int)dutycycle - 10);
 			}
 			else if((dutycycle - 5) >= GPIO.getMIN_DUTY()){
+				System.out.println("Right changed to: " + (dutycycle -5));
 				GPIO.setPWMRight((int)dutycycle - 5);
 			}
 			else{
+				System.out.println("Left changed to: " + (dutycycle + 5));
 				GPIO.setPWMLeft(dutycycle + 5);
 			}
 			turnCount = turnCount - 1;
 			return true;
 		}
-		else if (turnCount <5 && turnCount > 0){
-			createInterupt(interuptTime, false);
+		else if (turnCount <5 && turnCount > 1){
+			createInteruptTurn(interuptTime, true);
 			turnCount = turnCount -1;
 			return true;
 		}
@@ -307,22 +323,25 @@ public class ForwardState extends IState{
 		System.out.println("Turning Left while going forward");
 		dutycycle = GPIO.getDutyCycle();
 		if(turnCount == 5){
-			createInterupt(interuptTime, false);
+			createInteruptTurn(interuptTime, false);
 			System.out.println("Interupt_scheduler called");
 			if((dutycycle - 10) >= GPIO.getMIN_DUTY()){
+				System.out.println("Left changed to: " + (dutycycle -10));
 				GPIO.setPWMLeft((int)dutycycle - 10);
 			}
 			else if((dutycycle - 5) >= GPIO.getMIN_DUTY()){
+				System.out.println("Left changed to: " + (dutycycle -5));
 				GPIO.setPWMLeft((int)dutycycle - 5);
 			}
 			else{
+				System.out.println("Right changed to: " + (dutycycle + 5));
 				GPIO.setPWMRight(dutycycle + 5);
 			}
 			turnCount = turnCount - 1;
 			return true;
 		}
-		else if (turnCount <5 && turnCount > 0){
-			createInterupt(interuptTime, false);
+		else if (turnCount <5 && turnCount > 1){
+			createInteruptTurn(interuptTime, false);
 			turnCount = turnCount -1;
 			return true;
 		}
@@ -430,6 +449,23 @@ public class ForwardState extends IState{
 		}
 
 	}
+	
+	class interupt_right extends TimerTask{
+		public synchronized void run() {
+			timer.cancel();
+			rightTurn();
+		}
+
+	}
+
+	class interupt_left extends TimerTask{
+		public synchronized void run() {
+			timer.cancel();
+			leftTurn();
+		}
+
+	}
+
 
 	@Override
 	public Boolean adjust() {
@@ -442,5 +478,5 @@ public class ForwardState extends IState{
 	public int getDutyCycle() {
 		return GPIO.getDutyCycle();
 	}
-
+	
 }
