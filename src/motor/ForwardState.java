@@ -2,6 +2,7 @@ package motor;
 
 import java.util.Timer;
 import java.util.TimerTask;
+import java.util.concurrent.TimeUnit;
 
 //****************************************************************
 //This moves the chair forward using increase and decrease
@@ -21,6 +22,8 @@ public class ForwardState extends IState{
 	private int interuptTime = 200; //Milli Seconds
 	private int dutycycle;
 	private int state; //0 - stopped, 1 - increase, -1 - decrease
+	private int neutralTime;
+	private int turnCount;
 
 	private GPIOCreator GPIO=null;
 
@@ -37,6 +40,7 @@ public class ForwardState extends IState{
 		//These are specific to the forward method and its internal state calculations
 
 		stageCount = 0;
+		turnCount = 5;
 		state =0;
 		GPIO.setDutyCycleBase(0);
 		GPIO.setStopped(true);
@@ -57,6 +61,7 @@ public class ForwardState extends IState{
 	}
 
 	public Boolean increase() {
+		turnCount = 5;
 		
 		GPIO.setMotorDirectionRight(1);
 		GPIO.setMotorDirectionLeft(1);
@@ -66,7 +71,7 @@ public class ForwardState extends IState{
 		dutycycle = GPIO.getDutyCycle();
 
 		//Checking if wheels are different speeds for error stop
-		if (GPIO.getDutyCycleBase() - dutycycle > 10){
+		if (GPIO.getDutyCycleBase() - dutycycle > 15){
 			System.out.println("Error: Wheel speeds are too different");
 			emergencyStop();
 			return false;
@@ -155,6 +160,7 @@ public class ForwardState extends IState{
 	}
 
 	public Boolean decrease(){
+		turnCount = 5;
 		
 		GPIO.setMotorDirectionRight(1);
 		GPIO.setMotorDirectionLeft(1);
@@ -167,11 +173,17 @@ public class ForwardState extends IState{
 		System.out.println(GPIO.getDutyCycleBase());
 
 		if (dutycycle <= GPIO.getMIN_DUTY() && GPIO.getStopped() == false){
+			neutral();
 			GPIO.setPWMLeft(0);
 			GPIO.setPWMRight(0);
 			
 			GPIO.setDutyCycleBase(0);
 			stageCount = 0;
+			try {
+				TimeUnit.SECONDS.sleep(neutralTime);
+			} catch (InterruptedException e) {
+				e.printStackTrace();
+			}
 			System.out.println("Chair decreased to a stop.");
 			GPIO.setStopped(true);
 
@@ -257,6 +269,73 @@ public class ForwardState extends IState{
 			return false;
 		}
 	}
+	
+	public Boolean rightTurn() {
+		System.out.println("Turning Right while going forward");
+		dutycycle = GPIO.getDutyCycle();
+		if(turnCount == 5){
+			createInterupt(interuptTime, false);
+			System.out.println("Interupt_scheduler called");
+			if((dutycycle - 10) >= GPIO.getMIN_DUTY()){
+				GPIO.setPWMRight((int)dutycycle - 10);
+			}
+			else if((dutycycle - 5) >= GPIO.getMIN_DUTY()){
+				GPIO.setPWMRight((int)dutycycle - 5);
+			}
+			else{
+				GPIO.setPWMLeft(dutycycle + 5);
+			}
+			turnCount = turnCount - 1;
+			return true;
+		}
+		else if (turnCount <5 && turnCount > 0){
+			createInterupt(interuptTime, false);
+			turnCount = turnCount -1;
+			return true;
+		}
+		else{
+			System.out.println("Stopping turn while moving");
+			GPIO.setPWMLeft(dutycycle);
+			GPIO.setPWMRight(dutycycle);
+			turnCount = 5;
+			return true;
+		}
+		
+	}
+	
+	public Boolean leftTurn() {
+		System.out.println("Turning Left while going forward");
+		dutycycle = GPIO.getDutyCycle();
+		if(turnCount == 5){
+			createInterupt(interuptTime, false);
+			System.out.println("Interupt_scheduler called");
+			if((dutycycle - 10) >= GPIO.getMIN_DUTY()){
+				GPIO.setPWMLeft((int)dutycycle - 10);
+			}
+			else if((dutycycle - 5) >= GPIO.getMIN_DUTY()){
+				GPIO.setPWMLeft((int)dutycycle - 5);
+			}
+			else{
+				GPIO.setPWMRight(dutycycle + 5);
+			}
+			turnCount = turnCount - 1;
+			return true;
+		}
+		else if (turnCount <5 && turnCount > 0){
+			createInterupt(interuptTime, false);
+			turnCount = turnCount -1;
+			return true;
+		}
+		else{
+			System.out.println("Stopping turn while moving");
+			GPIO.setPWMLeft(dutycycle);
+			GPIO.setPWMRight(dutycycle);
+			turnCount = 5;
+			return true;
+		}
+		
+	}
+
 
 	public Boolean emergencyStop() {
 		System.out.println("Emergency Stop");
@@ -267,7 +346,7 @@ public class ForwardState extends IState{
 		dutycycle = GPIO.getDutyCycle();
 		
 		//decrease the speed to MIN and then set to 0 to prevent current spikes through the system at smaller duty cycles
-		for (int i = 0; i < (GPIO.getDutyCycleBase() - GPIO.getMIN_DUTY()); i++){
+		/*for (int i = 0; i < (GPIO.getDutyCycleBase() - GPIO.getMIN_DUTY()); i++){
 			GPIO.setPWMLeft(GPIO.getDutyCycleBase() - 1);
 			GPIO.setPWMRight(GPIO.getDutyCycleBase() -1);
 
@@ -278,7 +357,25 @@ public class ForwardState extends IState{
 			} catch (InterruptedException e){
 				e.printStackTrace();
 			}
+		}*/
+		neutral();
+		try {
+			if(dutycycle <= 30){
+				TimeUnit.SECONDS.sleep(neutralTime);
+			}
+			else if(dutycycle <= 50 && dutycycle >30){
+				TimeUnit.SECONDS.sleep(neutralTime+1);
+			}
+			else if(dutycycle <=80 && dutycycle > 50){
+				TimeUnit.SECONDS.sleep(neutralTime+2);
+			}
+			else if(dutycycle > 80){
+				TimeUnit.SECONDS.sleep(neutralTime+3);
+			}
+		} catch (InterruptedException e) {
+			e.printStackTrace();
 		}
+
 		GPIO.setPWMLeft(0);
 		GPIO.setPWMRight(0);
 		

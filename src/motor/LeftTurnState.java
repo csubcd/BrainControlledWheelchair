@@ -12,6 +12,7 @@ import java.util.TimerTask;
 //pins are a guess. Might need to change polarity depending on motor controller.
 //For pins used see README
 //***************************
+import java.util.concurrent.TimeUnit;
 
 
 public class LeftTurnState extends IState{
@@ -21,6 +22,7 @@ public class LeftTurnState extends IState{
 	private int turnspeed = 20;
 	private int turntimeout;
 	private GPIOCreator GPIO=null;
+	private int neutralTime = 1;
 
 	//Right Turn State constructor 
 	//Default uses GPIO_01 and GPIO_24 for Wheel PWM and GPIO_4 for brakes
@@ -85,6 +87,12 @@ public Boolean decrease() {
 	if (GPIO.getStopped() == false && dutycycle >= 1){
 		System.out.println("Stopping turn to Left");
 		System.out.println("Enganging Brakes");
+		neutral();
+		try {
+			TimeUnit.SECONDS.sleep(neutralTime);
+		} catch (InterruptedException e) {
+			e.printStackTrace();
+		}
 		GPIO.setPWMRight(0);
 		GPIO.setPWMLeft(0);
 		GPIO.setBrakes(0);
@@ -105,6 +113,14 @@ public Boolean emergencyStop() {
 	System.out.println("Emergency Stop");
 	GPIO.setPWMRight(0);
 	GPIO.setPWMLeft(0);
+	
+	neutral();
+	try {
+		TimeUnit.SECONDS.sleep(neutralTime);
+	} catch (InterruptedException e) {
+		e.printStackTrace();
+	}
+
 
 	System.out.println("Enganging Brakes");
 	GPIO.setBrakes(0);
@@ -150,6 +166,20 @@ class interupt_reminder extends TimerTask{
 public int getDutyCycle() {
 	// TODO Auto-generated method stub
 	return GPIO.getDutyCycle();
+}
+
+
+@Override
+public Boolean rightTurn() {
+	// TODO Auto-generated method stub
+	return null;
+}
+
+
+@Override
+public Boolean leftTurn() {
+	// TODO Auto-generated method stub
+	return null;
 }
 
 
