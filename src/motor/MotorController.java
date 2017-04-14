@@ -112,6 +112,14 @@ public class MotorController {
 					forwardEvent.emergencyStop();
 					currentState = MotorState.stop;
 					break;
+				case right:
+					forwardEvent.rightTurn();
+					currentState = MotorState.forward;
+					break;
+				case left:
+					forwardEvent.leftTurn();
+					currentState = MotorState.forward;
+					break;
 				default:
 					break;
 				}
