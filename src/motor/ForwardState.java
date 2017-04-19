@@ -20,10 +20,12 @@ public class ForwardState extends IState{
 	private double offsetRight = 1; //Multiplied by the duty cycle for PID control so it should be between 0 and 1
 	private double offsetLeft = 1;
 	private int interuptTime = 200; //Milli Seconds
+	private int turnInteruptTime = 1000;
 	private int dutycycle;
 	private int state; //0 - stopped, 1 - increase, -1 - decrease
 	private int neutralTime;
 	private int turnCount;
+	private boolean startedTurn;
 
 	private GPIOCreator GPIO=null;
 
@@ -41,6 +43,7 @@ public class ForwardState extends IState{
 
 		stageCount = 0;
 		turnCount = 5;
+		startedTurn = false;
 		state =0;
 		GPIO.setDutyCycleBase(0);
 		GPIO.setStopped(true);
@@ -74,6 +77,7 @@ public class ForwardState extends IState{
 
 	public Boolean increase() {
 		turnCount = 5;
+		startedTurn = false;
 		
 		GPIO.setMotorDirectionRight(1);
 		GPIO.setMotorDirectionLeft(1);
@@ -173,6 +177,7 @@ public class ForwardState extends IState{
 
 	public Boolean decrease(){
 		turnCount = 5;
+		startedTurn = false;
 		
 		GPIO.setMotorDirectionRight(1);
 		GPIO.setMotorDirectionLeft(1);
@@ -285,9 +290,12 @@ public class ForwardState extends IState{
 	public Boolean rightTurn() {
 		System.out.println("Turning Right while going forward");
 		dutycycle = GPIO.getDutyCycle();
-		if(turnCount == 5){
-			createInteruptTurn(interuptTime, true);
+		if(startedTurn == false){
+		//if(turnCount == 5){
+			startedTurn = true;
+			createInteruptTurn(turnInteruptTime, true);
 			System.out.println("Interupt_scheduler called");
+			MotorController.getInstance().postMessage("Turning Right");
 			if((dutycycle - 10) >= GPIO.getMIN_DUTY()){
 				System.out.println("Right changed to: " + (dutycycle -10));
 				GPIO.setPWMRight((int)dutycycle - 10);
@@ -303,16 +311,18 @@ public class ForwardState extends IState{
 			turnCount = turnCount - 1;
 			return true;
 		}
-		else if (turnCount <5 && turnCount > 1){
-			createInteruptTurn(interuptTime, true);
-			turnCount = turnCount -1;
-			return true;
-		}
+		//else if (turnCount <5 && turnCount > 1){
+		//	createInteruptTurn(interuptTime, true);
+		//	turnCount = turnCount -1;
+		//	return true;
+		//}
 		else{
 			System.out.println("Stopping turn while moving");
+			MotorController.getInstance().postMessage("Forward " + dutycycle);
 			GPIO.setPWMLeft(dutycycle);
 			GPIO.setPWMRight(dutycycle);
 			turnCount = 5;
+			startedTurn = false;
 			return true;
 		}
 		
@@ -321,8 +331,11 @@ public class ForwardState extends IState{
 	public Boolean leftTurn() {
 		System.out.println("Turning Left while going forward");
 		dutycycle = GPIO.getDutyCycle();
-		if(turnCount == 5){
-			createInteruptTurn(interuptTime, false);
+		//if(turnCount == 5){
+		if(startedTurn == false){
+			startedTurn = true;
+			createInteruptTurn(turnInteruptTime, false);
+			MotorController.getInstance().postMessage("Turning Left");
 			System.out.println("Interupt_scheduler called");
 			if((dutycycle - 10) >= GPIO.getMIN_DUTY()){
 				System.out.println("Left changed to: " + (dutycycle -10));
@@ -339,16 +352,18 @@ public class ForwardState extends IState{
 			turnCount = turnCount - 1;
 			return true;
 		}
-		else if (turnCount <5 && turnCount > 1){
-			createInteruptTurn(interuptTime, false);
-			turnCount = turnCount -1;
-			return true;
-		}
+		//else if (turnCount <5 && turnCount > 1){
+		//	createInteruptTurn(interuptTime, false);
+		//	turnCount = turnCount -1;
+		//	return true;
+		//}
 		else{
 			System.out.println("Stopping turn while moving");
+			MotorController.getInstance().postMessage("Forward " + dutycycle);
 			GPIO.setPWMLeft(dutycycle);
 			GPIO.setPWMRight(dutycycle);
 			turnCount = 5;
+			startedTurn = false;
 			return true;
 		}
 		

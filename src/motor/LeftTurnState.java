@@ -127,7 +127,7 @@ public Boolean emergencyStop() {
 	
 	GPIO.setDutyCycleBase(0);
 	GPIO.setStopped(true);
-	timer.cancel();
+	if(timer != null) timer.cancel();
 	turntimeout = 15; //Reset for the next turn command
 	return true;
 }

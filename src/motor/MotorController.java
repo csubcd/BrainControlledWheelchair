@@ -21,7 +21,8 @@ public class MotorController {
 	private IState backwardEvent;
 	private IState leftEvent;
 	private IState rightEvent;
-	
+	private InetAddress serverIp;
+	private int portNumber;
 	private Socket socket;
 	private ObjectInputStream socketInput;
 	private ObjectOutputStream socketOutput;	
@@ -38,6 +39,8 @@ public class MotorController {
 	}
 	
 	public boolean setUpConection(InetAddress serverIp, int portNumber) {
+		this.serverIp = serverIp;
+		this.portNumber = portNumber;
 		gpio = new GPIOCreator();
 		forwardEvent = new ForwardState(gpio);
 		backwardEvent = new BackwardState(gpio);
@@ -73,7 +76,8 @@ public class MotorController {
 			try {
 				nextState = (MotorState)socketInput.readObject();
 			} catch (Exception e) {
-				nextState = MotorState.error;
+				if(waitForReconnect()) continue;
+				break;
 			}
 			if(gpio.getDutyCycle() == 0) {
 				currentState = MotorState.stop;
@@ -92,10 +96,6 @@ public class MotorController {
 					forwardEvent.emergencyStop();
 					currentState = MotorState.stop;
 					break;
-				case error:
-					forwardEvent.emergencyStop();
-					Shutdown();
-					return;
 				case backward:
 					if(!forwardEvent.decrease()) {
 						// decrease failed...
@@ -136,10 +136,6 @@ public class MotorController {
 					backwardEvent.emergencyStop();
 					currentState = MotorState.stop;
 					break;
-				case error:
-					backwardEvent.emergencyStop();
-					Shutdown();
-					return;
 				case forward:
 					if(!backwardEvent.decrease()) {
 						// decrease failed
@@ -166,9 +162,6 @@ public class MotorController {
 					leftEvent.emergencyStop();
 					currentState = MotorState.stop;
 					break;
-				case error:
-					Shutdown();
-					return;
 				case right:
 					leftEvent.decrease();
 					currentState = MotorState.stop;
@@ -193,9 +186,6 @@ public class MotorController {
 					rightEvent.emergencyStop();
 					currentState = MotorState.stop;
 					break;
-				case error:
-					Shutdown();
-					return;
 				case left:
 					rightEvent.decrease();
 					currentState = MotorState.stop;
@@ -225,9 +215,6 @@ public class MotorController {
 				case emergency:
 					currentState = MotorState.stop;
 					break;
-				case error:
-					Shutdown();
-					return;
 				case forward:
 					if(!forwardEvent.increase()) {
 						// increase failed...
@@ -247,13 +234,11 @@ public class MotorController {
 					break;
 				}
 				break;
-			case error:
-				Shutdown();
-				return;
 			default:
 				break;
 			}
 		}
+		System.out.println("Motor Controller shutting down");
 	}
 	
 	public void postMessage(String string) {
@@ -261,18 +246,30 @@ public class MotorController {
 			try {
 				socketOutput.writeObject(string);
 			} catch (IOException e) {
-				e.printStackTrace();
-				System.out.println("Failed to send message: " + string);
+				System.out.println("Failed to send message " + string + " " + e.getMessage());
 			}
 		}
 	}
 	
-	private void Shutdown() {
-		forwardEvent.emergencyStop();
-		backwardEvent.emergencyStop();
-		leftEvent.emergencyStop();
-		rightEvent.emergencyStop();
-		
+	private boolean waitForReconnect() {
+		System.out.println("Lost connection to App Ctrl trying to reconnect");
+		switch(currentState) {
+		case backward:
+			backwardEvent.emergencyStop();
+			break;
+		case forward:
+			forwardEvent.emergencyStop();
+			break;
+		case left:
+			leftEvent.emergencyStop();
+			break;
+		case right:
+			rightEvent.emergencyStop();
+			break;
+		default:
+			break;
+		}
+			
 		try {
 			socketInput.close();
 			socketOutput.close();
@@ -281,7 +278,26 @@ public class MotorController {
 		} catch (IOException e) {
 			// do nothing closing the socket
 		} 		
-		System.out.println("MC Shutdown");
+		while(true) {
+			try {
+				socket = new Socket(serverIp, portNumber);
+			} catch (ConnectException e) {
+				continue;
+			} catch (Exception e) {
+				e.printStackTrace();
+				return false;
+			}
+			break;
+		}
+		try {
+			socketOutput = new ObjectOutputStream(socket.getOutputStream());
+			socketInput = new ObjectInputStream( socket.getInputStream());
+			connected = true;
+		} catch (IOException e) {
+			e.printStackTrace();
+			return false;
+		}
+		return true;
 	}
 
 	public static void main(String[] args) {
