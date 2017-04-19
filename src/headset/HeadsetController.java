@@ -230,7 +230,7 @@ public class HeadsetController extends Thread {
 		switch (line) {
 		case training: {
 			long action1 = (long) EmoState.IEE_MentalCommandAction_t.MC_PUSH.ToInt();
-			long action2 = (long) EmoState.IEE_MentalCommandAction_t.MC_PULL.ToInt();
+			long action2 = (long) EmoState.IEE_MentalCommandAction_t.MC_LIFT.ToInt();
 			long action3 = (long) EmoState.IEE_MentalCommandAction_t.MC_RIGHT.ToInt();
 			long action4 = (long) EmoState.IEE_MentalCommandAction_t.MC_LEFT.ToInt();
 			long listAction = action1 | action2 | action3 | action4;
@@ -238,9 +238,14 @@ public class HeadsetController extends Thread {
 			errorCode = Edk.INSTANCE.IEE_MentalCommandSetActiveActions(userId.getValue(), listAction);
 			if (errorCode == EdkErrorCode.EDK_OK.ToInt())
 				AppController.getInstance().postMessageToGui(
-						"Setting MentalCommand active actions (MC_LEFT | MC_RIGHT) for user " + userId.getValue());
+						"Setting active actions for user " + userId.getValue());
 			else
-				AppController.getInstance().postMessageToGui("Setting MentalCommand active actions error: " + errorCode);
+				if(errorCode == 776) {
+					AppController.getInstance().postMessageToGui("Some commands need to be trained to be active");
+				}
+				else {
+					AppController.getInstance().postMessageToGui("Setting MentalCommand active actions error: " + errorCode);
+				}
 			
 			Edk.INSTANCE.IEE_EngineClearEventQueue(Edk.IEE_Event_t.IEE_EmoStateUpdated.ToInt());
 

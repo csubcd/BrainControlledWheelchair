@@ -24,6 +24,7 @@ public class BackwardState extends IState{
 	private int state; //0 - stopped, 1 - increased previously, -1 - decreased previously=
 	private int neutralTime = 1;
 	private int turnCount;
+	private int DutyMax = 35;
 
 	private GPIOCreator GPIO=null;
 
@@ -82,7 +83,7 @@ public class BackwardState extends IState{
 			return true;
 		}		
 		//Increasing if it was previously increasing and not at the 10% cycle
-		else if (stageCount < 9 && dutycycle <= (GPIO.getMAX_DUTY() - 1) && (state >=0)){
+		else if (stageCount < 9 && dutycycle <= (DutyMax - 1) && (state >=0)){
 			System.out.println("Starting increase");
 			createInterupt(interuptTime, true);
 			System.out.println("Interupt_scheduler called");
@@ -97,7 +98,7 @@ public class BackwardState extends IState{
 			return true;
 		}
 		//Increasing if it was previously decreasing and only partly made it to the 10% cycle
-		else if (stageCount <= 9 && dutycycle <= (GPIO.getMAX_DUTY() - 1) && (state < 0)){
+		else if (stageCount <= 9 && dutycycle <= (DutyMax - 1) && (state < 0)){
 			System.out.println("Starting increase");
 			createInterupt(interuptTime, true);
 			System.out.println("Interupt_scheduler called");
@@ -120,7 +121,7 @@ public class BackwardState extends IState{
 		}
 
 		
-		else if (dutycycle <= GPIO.getMAX_DUTY() - 1){
+		else if (dutycycle <= DutyMax - 1){
 			System.out.println("Starting final increase");
 
 			GPIO.setPWMLeft((int)Math.round((GPIO.getDutyCycleBase() + 1)* offsetLeft));

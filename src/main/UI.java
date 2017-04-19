@@ -317,6 +317,7 @@ public class UI extends JFrame {
 		}
 		if(trainingMode) {
 			txtDirection.setText("Training Mode ON");
+			AppController.getInstance().sendState(MotorState.stop);
 			HeadsetController.option = MotorState.training;
 			HeadsetController.pending = 1;
 
