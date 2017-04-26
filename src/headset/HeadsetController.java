@@ -16,7 +16,6 @@ import main.AppController;
 public class HeadsetController extends Thread {
 	public static final Pointer eEvent = Edk.INSTANCE.IEE_EmoEngineEventCreate();
 	public static final Pointer eState = Edk.INSTANCE.IEE_EmoStateCreate();
-	private static final String profileFilename = "EmotivProfile.emu";
 	public static BufferedReader in;
 	public static HeadsetConnectionState connectionStatus = HeadsetConnectionState.Disconnected;
 	private static Boolean run = true;
@@ -78,11 +77,17 @@ public class HeadsetController extends Thread {
 				int eventType = Edk.INSTANCE.IEE_EmoEngineEventGetType(eEvent);
 				Edk.INSTANCE.IEE_EmoEngineEventGetUserId(eEvent, engineUserID);
 
-				if (eventType == Edk.IEE_Event_t.IEE_UserAdded.ToInt())
+				if (eventType == Edk.IEE_Event_t.IEE_UserAdded.ToInt()) {
 					connectionStatus = HeadsetConnectionState.Connected;
+					AppController.getInstance().headsetConnected(true);
+					AppController.getInstance().postMessageToGui("User " + engineUserID.getValue() + " connected");
+				}
 				
-				else if (eventType == Edk.IEE_Event_t.IEE_UserRemoved.ToInt())
+				else if (eventType == Edk.IEE_Event_t.IEE_UserRemoved.ToInt()) {
 					connectionStatus = HeadsetConnectionState.Disconnected;
+					AppController.getInstance().headsetConnected(false);
+					AppController.getInstance().postMessageToGui("User " + engineUserID.getValue() + " disconnected");
+				}
 
 				else if (eventType == Edk.IEE_Event_t.IEE_EmoStateUpdated.ToInt()) {
 					Edk.INSTANCE.IEE_EmoEngineEventGetEmoState(eEvent, eState); 
@@ -227,20 +232,26 @@ public class HeadsetController extends Thread {
 	}
 	
 	public static void handleUserInput(IntByReference userId, String profileName, MotorState line) {
+		int errorCode = EdkErrorCode.EDK_OK.ToInt();
 		switch (line) {
 		case training: {
 			long action1 = (long) EmoState.IEE_MentalCommandAction_t.MC_PUSH.ToInt();
 			long action2 = (long) EmoState.IEE_MentalCommandAction_t.MC_LIFT.ToInt();
 			long action3 = (long) EmoState.IEE_MentalCommandAction_t.MC_RIGHT.ToInt();
-			long action4 = (long) EmoState.IEE_MentalCommandAction_t.MC_LEFT.ToInt();
+			long action4 = (long) EmoState.IEE_MentalCommandAction_t.MC_ROTATE_COUNTER_CLOCKWISE.ToInt();
 			long listAction = action1 | action2 | action3 | action4;
-			int errorCode = EdkErrorCode.EDK_OK.ToInt();
 			errorCode = Edk.INSTANCE.IEE_MentalCommandSetActiveActions(userId.getValue(), listAction);
 			if (errorCode == EdkErrorCode.EDK_OK.ToInt())
 				AppController.getInstance().postMessageToGui(
 						"Setting active actions for user " + userId.getValue());
 			else
 				if(errorCode == 776) {
+					AppController.getInstance().postMessageToGui("Some commands need to be trained to be active");
+				}
+				else if(errorCode == 774) {
+					AppController.getInstance().postMessageToGui("An invalid action bit was set: " + listAction);
+				}
+				else if(errorCode == 770) {
 					AppController.getInstance().postMessageToGui("Some commands need to be trained to be active");
 				}
 				else {
@@ -254,40 +265,72 @@ public class HeadsetController extends Thread {
 		}
 		case stop: {
 			AppController.getInstance().postMessageToGui("Starting training NEUTRAL!");
-			Edk.INSTANCE.IEE_MentalCommandSetTrainingAction(userId.getValue(), EmoState.IEE_MentalCommandAction_t.MC_NEUTRAL.ToInt());
-			Edk.INSTANCE.IEE_MentalCommandSetTrainingControl(userId.getValue(), Edk.IEE_MentalCommandTrainingControl_t.MC_START.getType());
+			errorCode = Edk.INSTANCE.IEE_MentalCommandSetTrainingAction(userId.getValue(), EmoState.IEE_MentalCommandAction_t.MC_NEUTRAL.ToInt());
+			if(errorCode != EdkErrorCode.EDK_OK.ToInt()) {
+				AppController.getInstance().postMessageToGui("Setting MentalCommand active actions error: " + errorCode);
+				break;
+			}
+			errorCode = Edk.INSTANCE.IEE_MentalCommandSetTrainingControl(userId.getValue(), Edk.IEE_MentalCommandTrainingControl_t.MC_START.getType());
+			if(errorCode != EdkErrorCode.EDK_OK.ToInt()) {
+				AppController.getInstance().postMessageToGui("Setting MentalCommand active actions error: " + errorCode);
+				break;
+			}
 			break;
 		}
 		case forward: {
 			AppController.getInstance().postMessageToGui("Starting training FORWARD!");
-			Edk.INSTANCE.IEE_MentalCommandSetTrainingAction(userId.getValue(),
-					EmoState.IEE_MentalCommandAction_t.MC_PUSH.ToInt());
-			Edk.INSTANCE.IEE_MentalCommandSetTrainingControl(userId.getValue(),
-					Edk.IEE_MentalCommandTrainingControl_t.MC_START.getType());
+			errorCode = Edk.INSTANCE.IEE_MentalCommandSetTrainingAction(userId.getValue(), EmoState.IEE_MentalCommandAction_t.MC_PUSH.ToInt());
+			if(errorCode != EdkErrorCode.EDK_OK.ToInt()) {
+				AppController.getInstance().postMessageToGui("Setting MentalCommand active actions error: " + errorCode);
+				break;
+			}
+			errorCode = Edk.INSTANCE.IEE_MentalCommandSetTrainingControl(userId.getValue(), Edk.IEE_MentalCommandTrainingControl_t.MC_START.getType());
+			if(errorCode != EdkErrorCode.EDK_OK.ToInt()) {
+				AppController.getInstance().postMessageToGui("Setting MentalCommand active actions error: " + errorCode);
+				break;
+			}
 			break;
 		}
 		case backward: {
 			AppController.getInstance().postMessageToGui("Starting training BACKWARD!");
-			Edk.INSTANCE.IEE_MentalCommandSetTrainingAction(userId.getValue(),
-					EmoState.IEE_MentalCommandAction_t.MC_PULL.ToInt());
-			Edk.INSTANCE.IEE_MentalCommandSetTrainingControl(userId.getValue(),
-					Edk.IEE_MentalCommandTrainingControl_t.MC_START.getType());
+			errorCode = Edk.INSTANCE.IEE_MentalCommandSetTrainingAction(userId.getValue(), EmoState.IEE_MentalCommandAction_t.MC_LIFT.ToInt());
+			if(errorCode != EdkErrorCode.EDK_OK.ToInt()) {
+				AppController.getInstance().postMessageToGui("Setting MentalCommand active actions error: " + errorCode);
+				break;
+			}
+			errorCode = Edk.INSTANCE.IEE_MentalCommandSetTrainingControl(userId.getValue(), Edk.IEE_MentalCommandTrainingControl_t.MC_START.getType());
+			if(errorCode != EdkErrorCode.EDK_OK.ToInt()) {
+				AppController.getInstance().postMessageToGui("Setting MentalCommand active actions error: " + errorCode);
+				break;
+			}
 			break;
 		}
 		case right: {
 			AppController.getInstance().postMessageToGui("Starting training RIGHT!");
-			Edk.INSTANCE.IEE_MentalCommandSetTrainingAction(userId.getValue(),
-					EmoState.IEE_MentalCommandAction_t.MC_RIGHT.ToInt());
-			Edk.INSTANCE.IEE_MentalCommandSetTrainingControl(userId.getValue(),
-					Edk.IEE_MentalCommandTrainingControl_t.MC_START.getType());
+			errorCode = Edk.INSTANCE.IEE_MentalCommandSetTrainingAction(userId.getValue(), EmoState.IEE_MentalCommandAction_t.MC_RIGHT.ToInt());
+			if(errorCode != EdkErrorCode.EDK_OK.ToInt()) {
+				AppController.getInstance().postMessageToGui("Setting MentalCommand active actions error: " + errorCode);
+				break;
+			}
+			errorCode = Edk.INSTANCE.IEE_MentalCommandSetTrainingControl(userId.getValue(), Edk.IEE_MentalCommandTrainingControl_t.MC_START.getType());
+			if(errorCode != EdkErrorCode.EDK_OK.ToInt()) {
+				AppController.getInstance().postMessageToGui("Setting MentalCommand active actions error: " + errorCode);
+				break;
+			}
 			break;
 		}
 		case left: {
 			AppController.getInstance().postMessageToGui("Starting training LEFT!");
-			Edk.INSTANCE.IEE_MentalCommandSetTrainingAction(userId.getValue(),
-					EmoState.IEE_MentalCommandAction_t.MC_LEFT.ToInt());
-			Edk.INSTANCE.IEE_MentalCommandSetTrainingControl(userId.getValue(),
-					Edk.IEE_MentalCommandTrainingControl_t.MC_START.getType());
+			errorCode = Edk.INSTANCE.IEE_MentalCommandSetTrainingAction(userId.getValue(), EmoState.IEE_MentalCommandAction_t.MC_ROTATE_COUNTER_CLOCKWISE.ToInt());
+			if(errorCode != EdkErrorCode.EDK_OK.ToInt()) {
+				AppController.getInstance().postMessageToGui("Setting MentalCommand active actions error: " + errorCode);
+				break;
+			}
+			errorCode = Edk.INSTANCE.IEE_MentalCommandSetTrainingControl(userId.getValue(), Edk.IEE_MentalCommandTrainingControl_t.MC_START.getType());
+			if(errorCode != EdkErrorCode.EDK_OK.ToInt()) {
+				AppController.getInstance().postMessageToGui("Setting MentalCommand active actions error: " + errorCode);
+				break;
+			}
 			break;
 		}
 		case run: {

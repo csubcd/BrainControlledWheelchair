@@ -296,7 +296,7 @@ public class UI extends JFrame {
 		}
 
 		value = value + power;
-		if(value < 100){
+		if(value < 500){
 			updateProgressBars(selectedState, value);
 		}
 		else{
@@ -306,7 +306,7 @@ public class UI extends JFrame {
 			AppController.getInstance().sendState(selectedState);
 
 		}
-
+		return;
 	}
 
 	private void EnableDisableTraining(boolean trainingMode) {
